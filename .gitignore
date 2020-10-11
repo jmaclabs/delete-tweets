@@ -1,3 +1,13 @@
+# OS and IDE
+.idea
+.misc.xml
+.DS_Store
+
+# config and data files - SECURITY ISSUE - DO NOT REMOVE THESE LINES FROM GITIGNORE!
+conf/*
+data
+setup.sh
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

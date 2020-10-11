@@ -6,12 +6,14 @@ import os
 import sys
 import time
 import json
+import yaml
 
 import twitter
 from dateutil.parser import parse
 
 __author__ = "Koen Rouwhorst"
-__version__ = "1.0.0"
+__maintainer__ = "John McLaughlin"
+__version__ = "1.0.1"
 
 
 class TweetDestroyer(object):
@@ -53,19 +55,22 @@ class TweetReader(object):
             yield row
 
 
-def delete(tweetjs_path, date, r):
+def delete(tweetjs_path, date, r, creds):
     with io.open(tweetjs_path, mode="r", encoding="utf-8") as tweetjs_file:
         count = 0
 
-        api = twitter.Api(consumer_key=os.environ["TWITTER_CONSUMER_KEY"],
-                          consumer_secret=os.environ["TWITTER_CONSUMER_SECRET"],
-                          access_token_key=os.environ["TWITTER_ACCESS_TOKEN"],
-                          access_token_secret=os.environ["TWITTER_ACCESS_TOKEN_SECRET"])
+        api = twitter.Api(consumer_key=creds["secrets"]["TWITTER_CONSUMER_KEY"],
+                          consumer_secret=creds["secrets"]["TWITTER_CONSUMER_SECRET"],
+                          access_token_key=creds["secrets"]["TWITTER_ACCESS_TOKEN"],
+                          access_token_secret=creds["secrets"]["TWITTER_ACCESS_TOKEN_SECRET"])
         destroyer = TweetDestroyer(api)
 
         tweets = json.loads(tweetjs_file.read()[25:])
         for row in TweetReader(tweets, date, r).read():
-            destroyer.destroy(row["id_str"])
+            if "id_str" not in row["tweet"]:
+                print("DAFUQ: {}".format(row))
+                exit(1)
+            destroyer.destroy(row["tweet"]["id_str"])
             count += 1
 
         print("Number of deleted tweets: %s\n" % count)
@@ -82,14 +87,17 @@ def main():
 
     args = parser.parse_args()
 
-    if not ("TWITTER_CONSUMER_KEY" in os.environ and
-            "TWITTER_CONSUMER_SECRET" in os.environ and
-            "TWITTER_ACCESS_TOKEN" in os.environ and
-            "TWITTER_ACCESS_TOKEN_SECRET" in os.environ):
-        sys.stderr.write("Twitter API credentials not set.")
+    if not os.path.isfile("conf/creds.yml"):
+        sys.stderr.write("Twitter API credentials file 'conf/creds.yml' not found.")
         exit(1)
 
-    delete(args.file, args.date, args.restrict)
+    with open("conf/creds.yml", 'r') as stream:
+        try:
+            creds = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
+
+    delete(args.file, args.date, args.restrict, creds)
 
 
 if __name__ == "__main__":
